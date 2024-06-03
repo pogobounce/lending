@@ -1,56 +1,66 @@
-# Sentiment
+## Foundry
 
-## Instructions
+**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 
-### Requirements
+Foundry consists of:
 
-1. Rust
-2. Foundry - https://github.com/gakonst/foundry
+-   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
+-   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
+-   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
+-   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
 
----
+## Documentation
 
-### Cloning Repo
+https://book.getfoundry.sh/
 
-```bash
-git clone --recurse-submodules git@github.com:sentimentxyz/protocol.git
+## Usage
+
+### Build
+
+```shell
+$ forge build
 ```
 
----
+### Test
 
-### Building Contracts
-
-```bash
-forge build
+```shell
+$ forge test
 ```
 
----
+### Format
 
-### Running tests
-
-#### Unit/Functional tests
-
-```bash
-forge test --no-match-contract Integration -vvv
+```shell
+$ forge fmt
 ```
 
-#### Integration tests
+### Gas Snapshots
 
-##### Ethereum mainnet
-
-```bash
-forge test --match-contract Integration --no-match-contract ArbiIntegration --fork-url https://rpc.ankr.com/eth
+```shell
+$ forge snapshot
 ```
 
-##### Arbitrum mainnet
+### Anvil
 
-```bash
-forge test --match-contract ArbiIntegration --fork-url https://arb1.arbitrum.io/rpc -vvv
+```shell
+$ anvil
 ```
 
----
+### Deploy
 
-#### Configuring mappings
+```shell
+$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```
 
-```bash
-forge config > remappings.txt
+### Cast
+
+```shell
+$ cast <subcommand>
+```
+
+### Help
+
+```shell
+$ forge --help
+$ anvil --help
+$ cast --help
 ```
