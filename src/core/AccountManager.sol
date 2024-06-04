@@ -70,8 +70,8 @@ contract AccountManager is ReentrancyGuard, Pausable, IAccountManager {
         @param _registry Address of Registry
     */
     function init(IRegistry _registry) external {
-        if (initialized) revert Errors.ContractAlreadyInitialized();
-        locked = 1;
+        if (initialized) revert Errors.ContractAlreadyInitialized(); // TODO: can use registry variable to check
+        locked = 1; // TODO: ????
         initialized = true;
         initPausable(msg.sender);
         registry = _registry;
@@ -205,7 +205,7 @@ contract AccountManager is ReentrancyGuard, Pausable, IAccountManager {
         address account,
         address token,
         uint256 amt
-    ) external nonReentrant onlyOwner(account) {
+    ) external nonReentrant onlyOwner(account) { // TODO: extra check that the token was actually deposited correctly
         if (!riskEngine.isWithdrawAllowed(account, token, amt))
             revert Errors.RiskThresholdBreached();
         account.withdraw(msg.sender, token, amt);
@@ -386,7 +386,7 @@ contract AccountManager is ReentrancyGuard, Pausable, IAccountManager {
             address token = accountBorrows[i];
             LToken = ILToken(registry.LTokenFor(token));
             LToken.updateState();
-            amt = LToken.getBorrowBalance(_account);
+            amt = LToken.getBorrowBalance(_account);  // TODO: by default liquidations are for the entire borrow amount
             token.safeTransferFrom(msg.sender, address(LToken), amt);
             LToken.collectFrom(_account, amt);
             account.removeBorrow(token);

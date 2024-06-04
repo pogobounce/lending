@@ -183,7 +183,7 @@ contract Account is IAccount {
         @param arr A list of addresses
         @param token Address to remove
     */
-    function _remove(address[] storage arr, address token) internal {
+    function _remove(address[] storage arr, address token) internal { // TODO: can optimize this by using hasAsset with position not bool
         uint len = arr.length;
         for(uint i; i < len; ++i) {
             if (arr[i] == token) {
