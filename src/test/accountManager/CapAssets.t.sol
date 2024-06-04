@@ -8,6 +8,14 @@ import {AccountManager} from "../../core/AccountManager.sol";
 import {Registry} from "../../core/Registry.sol";
 import {ISwapRouterV3} from "controller/uniswap/ISwapRouterV3.sol";
 
+import {LToken} from "../../tokens/LToken.sol";
+import {console} from "forge-std/console.sol";
+
+interface ITokenList {
+    function lTokens(uint index) external view returns (address);
+    function lTokens() external view returns (uint);
+}
+
 contract CapAssetsArbiIntegrationTest is Test {
     address uniV3Router = 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45;
 
@@ -34,6 +42,14 @@ contract CapAssetsArbiIntegrationTest is Test {
         startHoax(0x92f473Ef0Cd07080824F5e6B0859ac49b3AEb215);
         accountManagerProxy.changeImplementation(address(newAccountManager));
         accountManager.setAssetCap(2);
+				
+				uint i;
+				while (true)
+					try registry.lTokens(i++) returns (address lTok) {
+						LToken(lTok).togglePause();
+					} catch {
+						break;
+					}
     }
 
     function testOpenAccount() public {
