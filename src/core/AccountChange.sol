@@ -6,12 +6,14 @@ import {Helpers} from "../utils/Helpers.sol";
 import {IAccount} from "../interface/core/IAccount.sol";
 import {IERC20} from "../interface/tokens/IERC20.sol";
 
+// import {console} from "forge-std/console.sol";
+
 /**
     @title Sentiment Account
     @notice Contract that acts as a dynamic and distributed asset reserve
         which holds a user’s collateral and loaned assets
 */
-contract Account is IAccount {
+contract AccountChange is IAccount {
     using Helpers for address;
 
     /* -------------------------------------------------------------------------- */
@@ -35,7 +37,7 @@ contract Account is IAccount {
     address[] public borrows;
 
     /// @notice A mapping of ERC-20 assets present in the account
-    mapping(address => bool) public hasAsset;
+    mapping(address => uint) assetMap;
 
     /* -------------------------------------------------------------------------- */
     /*                              CUSTOM MODIFIERS                              */
@@ -100,7 +102,7 @@ contract Account is IAccount {
     */
     function addAsset(address token) external accountManagerOnly {
         assets.push(token);
-        hasAsset[token] = true;
+        assetMap[token] = assets.length;
     }
 
     /**
@@ -109,6 +111,7 @@ contract Account is IAccount {
     */
     function addBorrow(address token) external accountManagerOnly {
         borrows.push(token);
+				assetMap[token] = assetMap[token] | (borrows.length << 8);
     }
 
     /**
@@ -116,8 +119,11 @@ contract Account is IAccount {
         @param token Address of the ERC-20 token to remove
     */
     function removeAsset(address token) external accountManagerOnly {
-        _remove(assets, token);
-        hasAsset[token] = false;
+        //_remove(assets, token);
+				uint idx = (assetMap[token] & 0xFF) - 1;
+				assets[idx] = assets[assets.length - 1];
+        assets.pop();
+				assetMap[token] = 0;
     }
 
     /**
@@ -125,8 +131,26 @@ contract Account is IAccount {
         @param token Address of the ERC-20 token to remove
     */
     function removeBorrow(address token) external accountManagerOnly {
-        _remove(borrows, token);
+				uint idx = ((assetMap[token] >> 8) & 0xFF) - 1;
+				assetMap[token] = assetMap[token] & 0xFF;
+				if (idx != borrows.length - 1){
+						// console.log(idx, borrows.length - 1);
+						// console.log(borrows[idx], borrows[borrows.length - 1]);
+						borrows[idx] = borrows[borrows.length - 1];
+						assetMap[borrows[idx]] = (assetMap[borrows[idx]] & 0xFF) | ((idx + 1) << 8);
+				}
+        borrows.pop();
+        // _remove(borrows, token);
     }
+
+		/**
+        @notice Returns a list of ERC-20 assets borrowed by the owner
+        @return borrows List of addresses
+    */
+    function hasAsset(address token) external view returns (bool) {
+        return assetMap[token] > 0;
+    }
+
 
     /**
         @notice Returns whether the account has debt or not by checking the length
@@ -168,7 +192,7 @@ contract Account is IAccount {
                 toAddress, assets[i].balanceOf(address(this))
             ) {} catch {}
             if (assets[i].balanceOf(address(this)) == 0)
-                hasAsset[assets[i]] = false;
+                assetMap[assets[i]] = 0;
         }
         delete assets;
         toAddress.safeTransferEth(address(this).balance);
@@ -178,21 +202,21 @@ contract Account is IAccount {
     /*                             INTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */
 
-    /**
-        @dev Utility function to remove a given address from a list of addresses
-        @param arr A list of addresses
-        @param token Address to remove
-    */
-    function _remove(address[] storage arr, address token) internal {
-        uint len = arr.length;
-        for(uint i; i < len; ++i) {
-            if (arr[i] == token) {
-                arr[i] = arr[arr.length - 1];
-                arr.pop();
-                break;
-            }
-        }
-    }
+    // /**
+    //     @dev Utility function to remove a given address from a list of addresses
+    //     @param arr A list of addresses
+    //     @param token Address to remove
+    // */
+    // function _remove(address[] storage arr, address token) internal { // TODO: can optimize this by using hasAsset with position not bool
+    //     uint len = arr.length;
+    //     for(uint i; i < len; ++i) {
+    //         if (arr[i] == token) {
+    //             arr[i] = arr[arr.length - 1];
+    //             arr.pop();
+    //             break;
+    //         }
+    //     }
+    // }
 
     receive() external payable {}
 }

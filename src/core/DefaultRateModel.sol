@@ -27,7 +27,7 @@ contract DefaultRateModel is IRateModel {
         @notice Contract constructor
         @param _c1 constant coefficient, default value = 1 * 1e17
         @param _c2 constant coefficient, default value = 3 * 1e17
-        @param _c3 constant coefficient, default value = 35 * 1e17
+        @param _c3 constant coefficient, default value = 35 * 1e17 // sentiment launched with 20 instead
         @param _secsPerYear secs in a year, default value = 31556952 * 1e18
     */
     constructor(uint _c1, uint _c2, uint _c3, uint _secsPerYear) {

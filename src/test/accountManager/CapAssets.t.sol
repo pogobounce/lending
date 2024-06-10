@@ -85,9 +85,14 @@ contract CapAssetsArbiIntegrationTest is Test {
     }
 
     function testBorrowOneAsset() public {
+				LToken LWETH = LToken(0xb190214D5EbAc7755899F2D96E519aa7a5776bEC);
+				console.log(LWETH.totalAssets(), LWETH.getBorrows(), LWETH.borrows(), WETH.balanceOf(address(LWETH)));
+
         testDepositOneAsset();
         accountManager.borrow(account, address(WETH), 1e18);
         accountManager.borrow(account, address(WETH), 1e18);
+				
+				console.log(LWETH.totalAssets(), LWETH.getBorrows(), LWETH.borrows(), WETH.balanceOf(address(LWETH)));
     }
 
     function testBorrowTwoAssets() public {
