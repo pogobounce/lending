@@ -71,7 +71,7 @@ contract AccountManager is ReentrancyGuard, Pausable, IAccountManager {
     */
     function init(IRegistry _registry) external {
         if (initialized) revert Errors.ContractAlreadyInitialized(); // TODO: can use registry variable to check
-        locked = 1; // TODO: ????
+        locked = 1;
         initialized = true;
         initPausable(msg.sender);
         registry = _registry;
@@ -205,7 +205,7 @@ contract AccountManager is ReentrancyGuard, Pausable, IAccountManager {
         address account,
         address token,
         uint256 amt
-    ) external nonReentrant onlyOwner(account) { // TODO: extra check that the token was actually deposited correctly
+    ) external nonReentrant onlyOwner(account) {
         if (!riskEngine.isWithdrawAllowed(account, token, amt))
             revert Errors.RiskThresholdBreached();
         account.withdraw(msg.sender, token, amt);

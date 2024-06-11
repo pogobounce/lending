@@ -68,6 +68,11 @@ contract LToken is Pausable, ERC4626, ILToken {
         _;
     }
 
+		// brick the main implementation
+		constructor() {
+				initialized = true;
+		}
+
     /* -------------------------------------------------------------------------- */
     /*                             EXTERNAL FUNCTIONS                             */
     /* -------------------------------------------------------------------------- */

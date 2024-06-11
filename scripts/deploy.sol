@@ -17,6 +17,7 @@ import {OracleFacade} from "oracle/core/OracleFacade.sol";
 import {AccountManager} from "../src/core/AccountManager.sol";
 import {AccountFactory} from "../src/core/AccountFactory.sol";
 import {DefaultRateModel} from "../src/core/DefaultRateModel.sol";
+import {LinearRateModel} from "../src/core/LinearRateModel.sol";
 import {ArbiChainlinkOracle} from "oracle/chainlink/ArbiChainlinkOracle.sol";
 import {ControllerFacade} from "controller/core/ControllerFacade.sol";
 import {IController} from "controller/core/IController.sol";
@@ -37,7 +38,7 @@ import {ICurvePool} from "oracle/curve/CurveTriCryptoOracle.sol";
 import {UniV2LpOracle} from "oracle/uniswap/UniV2LPOracle.sol";
 
 contract Deploy is Test {
-    address constant TREASURY = 0x92f473Ef0Cd07080824F5e6B0859ac49b3AEb215;
+    address constant TREASURY = 0xEe7c97F035cD96DdBE93005c16cb236b5f077243;
 
     // arbi erc20
     address constant WETH9 = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
@@ -84,7 +85,8 @@ contract Deploy is Test {
     RiskEngine riskEngine;
     Beacon beacon;
     AccountFactory accountFactory;
-    DefaultRateModel rateModel;
+    LinearRateModel rateModel;
+		LinearRateModel rateModelStable;
 
     // LTokens
     LEther lEthImpl;
@@ -93,6 +95,7 @@ contract Deploy is Test {
     LToken lDai;
     LToken LWBTC;
     LToken LUSDT;
+		LToken LUSDC;
 
     // Controllers
     ControllerFacade controller;
@@ -113,22 +116,44 @@ contract Deploy is Test {
     Stable2CurveOracle stable2crvOracle;
     UniV2LpOracle SLPOracle;
 
+		// forge script ./scripts/deploy.sol --rpc-url <rpc_url> --broadcast --with-gas-price 13000000 --slow
     function run() public {
-        vm.startBroadcast();
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+				vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy protocol
-        deployRegistry();
-        deployAccount();
-        deployBeacon();
-        deployAccountManager();
-        deployRiskEngine();
-        deployAccountFactory();
-        deployRateModel();
-        enableCollateral();
-        printProtocol();
+				// already deployed
+				lToken = LToken(0xa7e562479745134dD9AAd79503Eb22bfde5d65F3);
+				registryImpl = Registry(0x60Da471bE5814B152fB4F9fc851277eC0b0224eA);
+				registry = Registry(0xCD9a1422cee2967C2496706eDb327Cbb27e5EB63);
+				account = Account(payable(0x8d6F60e70c6aB0e6e33Cd4263622dab3Cb63c618));
+				beacon = Beacon(0x0d16Eb27D1c973fEB2eC22e48D6a3d52C81Da2ee);
+				accountManagerImpl = AccountManager(0x2B0b245BD59d52fFA25ba1F80F89F06Fd321C649);
+				accountManager = AccountManager(0x6867fc993c257e1242DD5a8DE0194aA57157b03B);
+				riskEngine = RiskEngine(0x798Cd87Cb93a3a43a609f440632E7f5E93959625);
+				accountFactory = AccountFactory(0x23964FD3F5CE7B80cbC8e0Cd0a73F6fcd32C17Ea);
+				rateModel = LinearRateModel(0x433119d09Ca386Dedf8511296928ff3dF8329c67);
+				rateModelStable = LinearRateModel(0x62e23371cDbB81f3F2e472007732AfA022de790F);
+				controller = ControllerFacade(0x80780c586aCeE4A2FfAEB580A24Db6bbdf0aAcba);
+				aaveEthController = AaveEthController(0x4C00dbE2a9Bd26EA649bb8F76713A528767a98f4);
+				aaveController = AaveV3Controller(0xec09eAaE94d3F88E0b676a1849EB7f999Fc7347D);
+				uniSwapController = UniV3Controller(0x2fF7159aD8b7D5f53bCCD4b46712c0fA6Bb6ad70);
+				wethController = WETHController(0x8409B34E4226517Af6ca293B022f12ecdb7528d1);
+				curveStableSwapController = StableSwap2PoolController(0xB6AE575f5eAC5f6fc0e0e46a4C8825a4d3717126);
 
-        // Deploy Controllers
-        deployControllerFacade();
+
+        // // Deploy protocol
+        // deployRegistry();
+        // deployAccount();
+        // deployBeacon();
+        // deployAccountManager();
+        // deployRiskEngine();
+        // deployAccountFactory();
+        // deployRateModel();
+        // enableCollateral();
+        // printProtocol();
+
+        // // Deploy Controllers
+        // deployControllerFacade();
         deployControllers();
         printControllers();
 
@@ -140,10 +165,11 @@ contract Deploy is Test {
         initDependencies();
 
         // Deploy LTokens
+				// deployLTokenImpl();
         deployLEther();
-        deployLDAI();
         deployLWBTC();
         deployLUSDT();
+				deployLUSDC();
         printLTokens();
 
         vm.stopBroadcast();
@@ -173,7 +199,7 @@ contract Deploy is Test {
     }
 
     function deployRiskEngine() internal {
-        riskEngine = new RiskEngine(registry);
+				riskEngine = new RiskEngine(registry);
         registry.setAddress("RISK_ENGINE", address(riskEngine));
     }
 
@@ -183,8 +209,10 @@ contract Deploy is Test {
     }
 
     function deployRateModel() internal {
-        rateModel = new DefaultRateModel(1e17, 3e17, 35e17, 31556952e18);
+        rateModel = new LinearRateModel(0, 40000000000000000, 1100000000000000000, 8e17, 2e17, 31556952 * 1e18); // for eth/wbtc
         registry.setAddress("RATE_MODEL", address(rateModel));
+				rateModelStable = new LinearRateModel(0, 80000000000000000, 750000000000000000, 9e17, 1e17, 31556952 * 1e18); // for usdt/usdc
+        registry.setAddress("RATE_MODEL_STABLE", address(rateModelStable));
     }
 
     function deployOracleFacade() internal {
@@ -202,34 +230,37 @@ contract Deploy is Test {
         riskEngine.initDep();
     }
 
+		function deployLTokenImpl() internal {
+				lToken = new LToken();
+		}
+
     function deployLEther() internal {
         lEthImpl = new LEther();
         lEth = LEther(payable(address(new Proxy(address(lEthImpl)))));
-        lEth.init(ERC20(WETH9), "LEther", "LETH", registry, 1e17, TREASURY);
+        lEth.init(ERC20(WETH9), "LEther", "LETH", registry, 1e17, TREASURY, 1e12, 1e18);
         registry.setLToken(WETH9, address(lEth));
         lEth.initDep("RATE_MODEL");
     }
 
-    function deployLDAI() internal {
-        lToken = new LToken();
-        lDai = LToken(address(new Proxy(address(lToken))));
-        lDai.init(ERC20(DAI), "LDai", "LDAI", registry, 1e17, TREASURY);
-        registry.setLToken(DAI, address(lDai));
-        lDai.initDep("RATE_MODEL");
-    }
-
     function deployLWBTC() internal {
         LWBTC = LToken(address(new Proxy(address(lToken))));
-        LWBTC.init(ERC20(WBTC), "LWrapped Bitcoin", "LWBTC", registry, 1e17, TREASURY);
+        LWBTC.init(ERC20(WBTC), "LWrapped Bitcoin", "LWBTC", registry, 1e17, TREASURY, 100, 1000000); // max supply : 0.01 btc
         registry.setLToken(WBTC, address(LWBTC));
         LWBTC.initDep("RATE_MODEL");
     }
 
     function deployLUSDT() internal {
         LUSDT = LToken(address(new Proxy(address(lToken))));
-        LUSDT.init(ERC20(USDT), "LTether USD", "LUSDT", registry, 1e17, TREASURY);
+        LUSDT.init(ERC20(USDT), "LTether USD", "LUSDT", registry, 1e17, TREASURY, 0, 1000 * 1e6);
         registry.setLToken(USDT, address(LUSDT));
-        LUSDT.initDep("RATE_MODEL");
+        LUSDT.initDep("RATE_MODEL_STABLE");
+    }
+
+		function deployLUSDC() internal {
+        LUSDC = LToken(address(new Proxy(address(lToken))));
+        LUSDC.init(ERC20(USDC), "LUSDC", "LUSDC", registry, 1e17, TREASURY, 0, 1000 * 1e6);
+        registry.setLToken(USDC, address(LUSDC));
+        LUSDC.initDep("RATE_MODEL_STABLE");
     }
 
     function deployWETHOracle() internal {
@@ -242,18 +273,16 @@ contract Deploy is Test {
         chainlinkOracle = new ArbiChainlinkOracle(
             AggregatorV3Interface(ETHUSD), AggregatorV3Interface(SEQUENCER)
         );
-        configureChainLinkOracle(DAI, DAIUSD);
         configureChainLinkOracle(WBTC, WBTCUSD);
         configureChainLinkOracle(USDC, USDCUSD);
         configureChainLinkOracle(USDT, USDTUSD);
-        oracle.setOracle(DAI, chainlinkOracle);
         oracle.setOracle(WBTC, chainlinkOracle);
         oracle.setOracle(USDT, chainlinkOracle);
         oracle.setOracle(USDC, chainlinkOracle);
     }
 
     function configureChainLinkOracle(address token, address feed) internal {
-        chainlinkOracle.setFeed(token, AggregatorV3Interface(feed));
+        chainlinkOracle.setFeed(token, AggregatorV3Interface(feed), 3600);
         oracle.setOracle(token, chainlinkOracle);
     }
 
@@ -266,34 +295,29 @@ contract Deploy is Test {
     }
 
     function deployControllers() internal {
-        // aave
-        aaveEthController = new AaveEthController(aWETH);
-        aaveController = new AaveV3Controller(controller);
-        controller.updateController(AAVE_POOL, aaveController);
-        controller.updateController(WETH_GATEWAY, aaveEthController);
-        controller.toggleTokenAllowance(aWETH);
-        controller.toggleTokenAllowance(aWBTC);
-        controller.toggleTokenAllowance(aDAI);
+        // // aave
+        // aaveEthController = new AaveEthController(aWETH);
+        // aaveController = new AaveV3Controller();
+        // controller.updateController(AAVE_POOL, aaveController);
+        // controller.updateController(WETH_GATEWAY, aaveEthController);
+        // controller.toggleTokenAllowance(aWETH);
+        // controller.toggleTokenAllowance(aWBTC);
+        // controller.toggleTokenAllowance(aDAI);
 
-        // uniswap
-        uniSwapController = new UniV3Controller(controller);
-        controller.updateController(ROUTER, uniSwapController);
-        controller.toggleTokenAllowance(WETH9);
-        controller.toggleTokenAllowance(WBTC);
-        controller.toggleTokenAllowance(DAI);
+        // // uniswap
+        // uniSwapController = new UniV3Controller(controller);
+        // controller.updateController(ROUTER, uniSwapController);
+        // controller.toggleTokenAllowance(WETH9);
+        // controller.toggleTokenAllowance(WBTC);
+        // controller.toggleTokenAllowance(DAI);
 
-        // sushi swap
-        sushiSwapController = new UniV2Controller(WETH9, IUniV2Factory(FACTORY), controller);
-        controller.toggleTokenAllowance(SLP);
-        controller.updateController(SUSHI_ROUTER, sushiSwapController);
+        // // WETH
+        // wethController = new WETHController(WETH9);
+        // controller.updateController(WETH9, wethController);
 
-        // WETH
-        wethController = new WETHController(WETH9);
-        controller.updateController(WETH9, wethController);
-
-        // curve
-        curveStableSwapController = new StableSwap2PoolController();
-        controller.updateController(TWOPOOL, curveStableSwapController);
+        // // curve
+        // curveStableSwapController = new StableSwap2PoolController();
+        // controller.updateController(TWOPOOL, curveStableSwapController);
         curveTriCryptoController = new CurveCryptoSwapController();
         controller.updateController(TRIPOOL, curveTriCryptoController);
     }
@@ -307,10 +331,6 @@ contract Deploy is Test {
         oracle.setOracle(aWETH, aTokenOracle);
         oracle.setOracle(aDAI, aTokenOracle);
         oracle.setOracle(aWBTC, aTokenOracle);
-
-        // Sushi
-        SLPOracle = new UniV2LpOracle(oracle);
-        oracle.setOracle(SLP, SLPOracle);
 
         curveTriCryptoOracle = new CurveTriCryptoOracle(ICurveTriCryptoOracle(TRICRYPTOPRICE), ICurvePool(TRIPOOL));
         oracle.setOracle(TRICRYPTO, curveTriCryptoOracle);
@@ -336,7 +356,6 @@ contract Deploy is Test {
         console.log("WETH Oracle", address(wethOracle));
         console.log("ChainlinkOracle", address(chainlinkOracle));
         console.log("AToken Oracle", address(aTokenOracle));
-        console.log("SLP Oracle", address(SLPOracle));
         console.log("stable2crvOracle", address(stable2crvOracle));
     }
 
@@ -344,14 +363,14 @@ contract Deploy is Test {
         console.log("LEther Impl", address(lEthImpl));
         console.log("LEther", address(lEth));
         console.log("LToken", address(lToken));
-        console.log("LDai", address(lDai));
         console.log("LWBTC", address(LWBTC));
+				console.log("LUSDC", address(LUSDC));
+				console.log("LUSDT", address(LUSDT));
     }
 
     function printControllers() internal view {
         console.log("Controller Facade", address(controller));
         console.log("Uniswap Controller", address(uniSwapController));
-        console.log("Sushi swap Controller", address(sushiSwapController));
         console.log("Aave Controller", address(aaveController));
         console.log("Aave Eth Controller", address(aaveEthController));
         console.log("WETH Controller", address(wethController));
